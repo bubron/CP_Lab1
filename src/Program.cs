@@ -1,4 +1,7 @@
 ﻿using System.Text;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("CP_Lab1.Tests")]
 
 namespace CP_Lab1
 {
@@ -71,13 +74,13 @@ namespace CP_Lab1
                         DisplayTasks();
                         break;
                     case "2":
-                        AddTask();
+                        HandleAddTask();
                         break;
                     case "3":
-                        ToggleTaskStatus();
+                        HandleToggleTaskStatus();
                         break;
                     case "4":
-                        DeleteTask();
+                        HandleDeleteTask();
                         break;
                     case "x":
                         Console.WriteLine("Дякуємо за використання EduPlan. До побачення!");
@@ -91,18 +94,73 @@ namespace CP_Lab1
             }
         }
 
-        private static void InitializeData()
+        // =================================================================
+        //                 МЕТОДИ ДЛЯ ТЕСТУВАННЯ
+        // =================================================================
+
+        // Ініціалізація даних
+        internal static void InitializeData()
         {
             tasks.Add(new LearningTask(nextTaskId++, "Лабораторна 1 (Консоль)", "Кросплатформне програмування", DateTime.Now.AddDays(7), TaskStatus.InProgress));
             tasks.Add(new LearningTask(nextTaskId++, "Підготуватись до колоквіуму", "Алгоритми", DateTime.Now.AddDays(14), TaskStatus.Completed));
             tasks.Add(new LearningTask(nextTaskId++, "Завершити курсову роботу", "Бази даних", DateTime.Now.AddDays(30), TaskStatus.Planned));
         }
 
+        // Чиста логіка додавання завдання (для тестування)
+        internal static LearningTask AddTask(string title, string course, DateTime dueDate)
+        {
+            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(course))
+            {
+                throw new ArgumentException("Title or Course cannot be empty.");
+            }
+            var newTask = new LearningTask(nextTaskId++, title, course, dueDate, TaskStatus.Planned);
+            tasks.Add(newTask);
+            return newTask;
+        }
+
+        // Чиста логіка зміни статусу (для тестування)
+        internal static bool ToggleStatus(int taskId)
+        {
+            var task = tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task == null) return false;
+
+            // Логіка циклічного перемикання
+            task.Status = task.Status switch
+            {
+                TaskStatus.Planned => TaskStatus.InProgress,
+                TaskStatus.InProgress => TaskStatus.Completed,
+                TaskStatus.Completed => TaskStatus.Planned,
+                _ => TaskStatus.Planned
+            };
+            return true;
+        }
+
+        // Чиста логіка видалення завдання (для тестування)
+        internal static bool DeleteTask(int taskId)
+        {
+            var task = tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task == null) return false;
+
+            return tasks.Remove(task);
+        }
+
+        // Допоміжні методи для управління станом в тестах
+        internal static List<LearningTask> GetTasksForTesting()
+        {
+            return tasks;
+        }
+
+        internal static void ClearTasksForTesting()
+        {
+            tasks.Clear();
+            nextTaskId = 1;
+        }
+
         private static void DisplayMenu()
         {
             Console.Clear();
             Console.WriteLine("=============================================");
-            Console.WriteLine("          EduPlan: Менеджер завдань      ");
+            Console.WriteLine("         EduPlan: Менеджер завдань         ");
             Console.WriteLine("=============================================");
             Console.WriteLine("1. Показати всі завдання (вибір сортування)");
             Console.WriteLine("2. Додати нове завдання");
@@ -175,7 +233,8 @@ namespace CP_Lab1
             }
         }
 
-        private static void AddTask()
+        // Обробник I/O для додавання
+        private static void HandleAddTask()
         {
             while (true)
             {
@@ -206,8 +265,8 @@ namespace CP_Lab1
                     continue;
                 }
 
-                var newTask = new LearningTask(nextTaskId++, title, course, dueDate, TaskStatus.Planned);
-                tasks.Add(newTask);
+                AddTask(title, course, dueDate);
+
                 Console.WriteLine($"\n Завдання '{title}' успішно додано зі статусом [ЗАПЛАНОВАНО].");
 
                 Console.WriteLine("\nНатисніть Enter для повернення до головного меню...");
@@ -216,7 +275,8 @@ namespace CP_Lab1
             }
         }
 
-        private static void ToggleTaskStatus()
+        // Обробник I/O для зміни статусу
+        private static void HandleToggleTaskStatus()
         {
             while (true)
             {
@@ -236,18 +296,11 @@ namespace CP_Lab1
 
                 if (int.TryParse(input, out int taskId))
                 {
-                    var task = tasks.FirstOrDefault(t => t.Id == taskId);
-                    if (task != null)
-                    {
-                        // Логіка циклічного перемикання
-                        task.Status = task.Status switch
-                        {
-                            TaskStatus.Planned => TaskStatus.InProgress,
-                            TaskStatus.InProgress => TaskStatus.Completed,
-                            TaskStatus.Completed => TaskStatus.Planned,
-                            _ => TaskStatus.Planned
-                        };
+                    bool success = ToggleStatus(taskId);
 
+                    if (success)
+                    {
+                        var task = tasks.First(t => t.Id == taskId);
                         Console.WriteLine($"\n Статус завдання '{task.Title}' змінено на: [{task.Status.ToString().ToUpper()}].");
 
                         Console.WriteLine("\nНатисніть Enter для повернення до головного меню...");
@@ -270,7 +323,8 @@ namespace CP_Lab1
             }
         }
 
-        private static void DeleteTask()
+        // Обробник I/O для видалення
+        private static void HandleDeleteTask()
         {
             while (true)
             {
@@ -291,10 +345,12 @@ namespace CP_Lab1
                 if (int.TryParse(input, out int taskId))
                 {
                     var task = tasks.FirstOrDefault(t => t.Id == taskId);
-                    if (task != null)
+
+                    bool success = DeleteTask(taskId);
+
+                    if (success)
                     {
-                        tasks.Remove(task);
-                        Console.WriteLine($"\n Завдання '{task.Title}' видалено.");
+                        Console.WriteLine($"\n Завдання '{task!.Title}' видалено.");
 
                         Console.WriteLine("\nНатисніть Enter для повернення до головного меню...");
                         Console.ReadLine();
